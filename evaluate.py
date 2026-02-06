@@ -52,11 +52,12 @@ def evaluate():
             all_preds.extend(preds.cpu().numpy())
             all_labels.extend(labels.numpy())
 
-    # 5. Calculate Metrics (As requested for your report)
+    # 5. Calculate Metrics with Zero Division Handling
+    # Setting zero_division=1 ensures the script doesn't error out if a class is missing
     acc = accuracy_score(all_labels, all_preds)
-    prec = precision_score(all_labels, all_preds)
-    rec = recall_score(all_labels, all_preds)
-    f1 = f1_score(all_labels, all_preds)
+    prec = precision_score(all_labels, all_preds, zero_division=1)
+    rec = recall_score(all_labels, all_preds, zero_division=1)
+    f1 = f1_score(all_labels, all_preds, zero_division=1)
 
     print("\n" + "="*30)
     print(" PROJECT EVALUATION METRICS ")
@@ -67,23 +68,28 @@ def evaluate():
     print(f"F1-Score:  {f1*100:.2f}%")
     print("-" * 30)
 
-    # 6. Detailed Classification Report
+    # 6. Detailed Classification Report - Dynamic Label Handling
+    unique_labels = np.unique(all_labels)
+    all_targets = ['Healthy', 'Glaucoma']
+    # Filter targets to match only what is actually in the current data
+    present_targets = [all_targets[i] for i in unique_labels]
+    
     print("\nDetailed Classification Report:")
-    print(classification_report(all_labels, all_preds, target_names=['Healthy', 'Glaucoma']))
+    print(classification_report(all_labels, all_preds, target_names=present_targets))
 
     # 7. Generate and Save Confusion Matrix Visual
     cm = confusion_matrix(all_labels, all_preds)
     plt.figure(figsize=(8, 6))
+    # We use dynamic labels here too to prevent plotting errors
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
-                xticklabels=['Healthy', 'Glaucoma'], 
-                yticklabels=['Healthy', 'Glaucoma'])
+                xticklabels=present_targets, 
+                yticklabels=present_targets)
     plt.xlabel('Predicted Label')
     plt.ylabel('True Label')
     plt.title('Glaucoma Detection - Confusion Matrix')
     
-    # Save the plot for your Stage-1 report documentation
-    plt.savefig('evaluation_results.png')
-    print("\nVisual Confusion Matrix saved as 'evaluation_results.png'")
+    plt.savefig('plots/evaluation_results.png')
+    print("\nVisual Confusion Matrix saved as 'plots/evaluation_results.png'")
 
 if __name__ == "__main__":
     evaluate()
