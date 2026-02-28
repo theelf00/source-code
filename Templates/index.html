@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ophthalmic Diagnostic AI</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; margin: 0; display: flex; flex-direction: column; align-items: center; }
+        .navbar { background-color: #2c3e50; color: white; width: 100%; padding: 1.5rem; text-align: center; }
+        .container { background: white; margin-top: 30px; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 600px; text-align: center; }
+        button { background-color: #3498db; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; margin-top: 10px; }
+        .result-box { margin-top: 20px; padding: 15px; border-radius: 8px; font-weight: bold; }
+        .healthy { background-color: #d4edda; color: #155724; }
+        .glaucoma { background-color: #f8d7da; color: #721c24; }
+        
+        /* History Table Styles */
+        .history-section { margin-top: 40px; width: 100%; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+        th, td { border-bottom: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #ecf0f1; color: #2c3e50; }
+        .tag { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="navbar"><h1>Ophthalmic Diagnostic AI</h1></div>
+    
+    <div class="container">
+        <h2>Upload Fundus Image</h2>
+        <form action="/" method="post" enctype="multipart/form-data">
+            <input type="file" name="file" accept="image/*" required><br>
+            <button type="submit">Analyze Scan</button>
+        </form>
+
+        {% if result %}
+            <div class="result-box {{ 'glaucoma' if 'Glaucoma' in result else 'healthy' }}">
+                Final Prediction: {{ result }}
+            </div>
+        {% endif %}
+
+        <div class="history-section">
+            <h3>Patient Diagnostic History</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>File Name</th>
+                        <th>Diagnosis</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in history %}
+                    <tr>
+                        <td>{{ item.filename }}</td>
+                        <td>
+                            <span class="tag {{ 'glaucoma' if 'Glaucoma' in item.result else 'healthy' }}">
+                                {{ item.result }}
+                            </span>
+                        </td>
+                        <td>{{ item.time }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
