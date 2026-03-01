@@ -76,5 +76,6 @@ def train_gan():
     print("GAN Training complete. Model saved to models/generator_trained.pth")
 
 
+
 if __name__ == "__main__":
     train_gan()

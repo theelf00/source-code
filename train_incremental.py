@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 
 from models.classifier import GlaucomaClassifier
+from utils.checkpoint import load_model_checkpoint
 from utils.dataset_loader import GlaucomaDataset
 from utils.losses import distillation_loss
 from utils.metrics_logger import MetricsLogger
@@ -53,8 +54,12 @@ def train_incremental():
 
     logger = MetricsLogger(filename="plots/training_log.csv")
 
+    best_val_f1 = -1.0
+    os.makedirs("models", exist_ok=True)
+
     print("Starting Incremental Learning Phase...")
     for epoch in range(EPOCHS):
+        new_model.train()
         running_loss = 0.0
         correct = 0
         total = 0

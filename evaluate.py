@@ -16,6 +16,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 
 from models.classifier import GlaucomaClassifier
+from utils.checkpoint import load_model_checkpoint
 from utils.dataset_loader import GlaucomaDataset
 from utils.reproducibility import set_seed
 
@@ -97,6 +98,26 @@ def evaluate():
 
     plt.savefig("plots/evaluation_results.png")
     print("\nVisual confusion matrix saved as 'plots/evaluation_results.png'")
+
+
+    metrics_payload = {
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "metrics": {
+            "accuracy": acc,
+            "precision": prec,
+            "recall": rec,
+            "f1_score": f1,
+        },
+        "num_samples": len(all_labels),
+        "labels_present": present_targets,
+        "model_checkpoint": MODEL_PATH,
+        "checkpoint_metadata": metadata,
+    }
+
+    with open(METRICS_OUTPUT, "w", encoding="utf-8") as f:
+        json.dump(metrics_payload, f, indent=2)
+
+    print(f"Evaluation metrics JSON saved as '{METRICS_OUTPUT}'")
 
 
 if __name__ == "__main__":

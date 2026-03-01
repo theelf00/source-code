@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 
 
 class GlaucomaDataset(Dataset):
-    def __init__(self, csv_file, img_dir, transform=None):
+    def __init__(self, csv_file, img_dir, transform=None, split=None):
         self.annotations = pd.read_csv(csv_file)
         self.img_dir = img_dir
         self.transform = transform
