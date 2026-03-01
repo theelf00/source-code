@@ -1,8 +1,9 @@
 import os
+
 import pandas as pd
 from PIL import Image
 from torch.utils.data import Dataset
-from torchvision import transforms
+
 
 class GlaucomaDataset(Dataset):
     def __init__(self, csv_file, img_dir, transform=None):
@@ -10,16 +11,28 @@ class GlaucomaDataset(Dataset):
         self.img_dir = img_dir
         self.transform = transform
 
+        required_cols = {"filename", "label"}
+        if not required_cols.issubset(self.annotations.columns):
+            raise ValueError(
+                f"Dataset CSV must contain columns {required_cols}. "
+                f"Found columns: {list(self.annotations.columns)}"
+            )
+
     def __len__(self):
         return len(self.annotations)
 
     def __getitem__(self, index):
-        img_id = self.annotations.iloc[index, 0]
+        row = self.annotations.iloc[index]
+        img_id = row["filename"]
         img_path = os.path.join(self.img_dir, img_id)
+
+        if not os.path.exists(img_path):
+            raise FileNotFoundError(f"Image file not found: {img_path}")
+
         image = Image.open(img_path).convert("RGB")
-        label = int(self.annotations.iloc[index, 1])
-        
+        label = int(row["label"])
+
         if self.transform:
             image = self.transform(image)
-            
+
         return image, label
