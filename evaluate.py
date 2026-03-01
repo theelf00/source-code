@@ -1,5 +1,4 @@
-import json
-from datetime import datetime
+import os
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -19,37 +18,40 @@ from torchvision import transforms
 from models.classifier import GlaucomaClassifier
 from utils.checkpoint import load_model_checkpoint
 from utils.dataset_loader import GlaucomaDataset
-from utils.seed import set_seed
+from utils.reproducibility import set_seed
 
 # Configuration
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 MODEL_PATH = "models/glaucoma_detector_final.pth"
-CSV_PATH = "metadata.csv"
+TEST_SPLIT_PATH = "data/splits/test.csv"
+LEGACY_METADATA_PATH = "metadata.csv"
 IMG_DIR = "data/raw"
 SEED = 42
-METRICS_OUTPUT = "plots/evaluation_metrics.json"
 
 
 def evaluate():
     set_seed(SEED)
 
-    transform = transforms.Compose([
-        transforms.Resize((256, 256)),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-    ])
+    transform = transforms.Compose(
+        [
+            transforms.Resize((256, 256)),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        ]
+    )
 
-    dataset = GlaucomaDataset(csv_file=CSV_PATH, img_dir=IMG_DIR, transform=transform, split="test")
+    csv_path = TEST_SPLIT_PATH if os.path.exists(TEST_SPLIT_PATH) else LEGACY_METADATA_PATH
+    dataset = GlaucomaDataset(csv_file=csv_path, img_dir=IMG_DIR, transform=transform)
     loader = DataLoader(dataset, batch_size=16, shuffle=False)
 
-    model = GlaucomaClassifier(num_classes=2).to(DEVICE)
-    model, metadata = load_model_checkpoint(model, MODEL_PATH, DEVICE)
+    model = GlaucomaClassifier(num_classes=2, use_pretrained=False).to(DEVICE)
+    model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
     model.eval()
 
     all_preds = []
     all_labels = []
 
-    print("Running evaluation on the holdout test split...")
+    print(f"Running evaluation on: {csv_path}")
     with torch.no_grad():
         for images, labels in loader:
             images = images.to(DEVICE)
@@ -95,7 +97,8 @@ def evaluate():
     plt.title("Glaucoma Detection - Confusion Matrix")
 
     plt.savefig("plots/evaluation_results.png")
-    print("\nVisual Confusion Matrix saved as 'plots/evaluation_results.png'")
+    print("\nVisual confusion matrix saved as 'plots/evaluation_results.png'")
+
 
     metrics_payload = {
         "timestamp": datetime.utcnow().isoformat() + "Z",

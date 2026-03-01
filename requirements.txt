@@ -6,5 +6,5 @@ pillow
 numpy
 scikit-learn
 matplotlib
-seaborn
 flask
+seaborn

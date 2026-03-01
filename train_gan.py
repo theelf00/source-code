@@ -1,34 +1,39 @@
+import os
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from models.gan_modules import Generator, Discriminator
+from models.gan_modules import Discriminator, Generator
 from utils.dataset_loader import GlaucomaDataset
-from utils.seed import set_seed
+from utils.reproducibility import set_seed
 
 # Setup
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 EPOCHS = 50
 LR = 1e-4
 SEED = 42
+TRAIN_SPLIT_PATH = "data/splits/train.csv"
+LEGACY_METADATA_PATH = "metadata.csv"
 
 
 def train_gan():
     set_seed(SEED)
 
-    # 1. Load Data
-    transform = transforms.Compose([
-        transforms.Resize((256, 256)),
-        transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-    ])
+    transform = transforms.Compose(
+        [
+            transforms.Resize((256, 256)),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5,), (0.5,)),
+        ]
+    )
 
-    dataset = GlaucomaDataset(csv_file="metadata.csv", img_dir="data/raw", transform=transform, split="train")
+    csv_path = TRAIN_SPLIT_PATH if os.path.exists(TRAIN_SPLIT_PATH) else LEGACY_METADATA_PATH
+    dataset = GlaucomaDataset(csv_file=csv_path, img_dir="data/raw", transform=transform)
     loader = DataLoader(dataset, batch_size=16, shuffle=True)
 
-    # 2. Initialize Models
     gen = Generator().to(DEVICE)
     disc = Discriminator().to(DEVICE)
 
@@ -42,7 +47,6 @@ def train_gan():
             real_imgs = real_imgs.to(DEVICE)
             batch_size = real_imgs.size(0)
 
-            # --- Train Discriminator ---
             opt_disc.zero_grad()
             label_real = torch.ones(batch_size, 1).to(DEVICE)
             label_fake = torch.zeros(batch_size, 1).to(DEVICE)
@@ -59,7 +63,6 @@ def train_gan():
             loss_disc.backward()
             opt_disc.step()
 
-            # --- Train Generator ---
             opt_gen.zero_grad()
             output = disc(fake_imgs)
             loss_gen = criterion(output, label_real)
@@ -69,9 +72,9 @@ def train_gan():
 
         print(f"Epoch [{epoch + 1}/{EPOCHS}] Loss D: {loss_disc:.4f}, Loss G: {loss_gen:.4f}")
 
-    # 3. Save the Generator
     torch.save(gen.state_dict(), "models/generator_trained.pth")
-    print("GAN Training Complete. Model saved to models/generator_trained.pth")
+    print("GAN Training complete. Model saved to models/generator_trained.pth")
+
 
 
 if __name__ == "__main__":

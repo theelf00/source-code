@@ -1,129 +1,94 @@
-# Glaucoma Detection Pipeline (ACRIMA)
+# Glaucoma Detection with GAN + Incremental Learning
 
-This repository trains and serves a glaucoma detector using fundus images from ACRIMA.
+This repository contains an end-to-end pipeline for glaucoma detection from retinal fundus images using:
+- metadata generation from ACRIMA filenames,
+- train/validation/test split creation,
+- GAN training for synthetic image generation,
+- incremental classifier training with distillation,
+- evaluation with standard metrics,
+- a Flask web app for inference.
 
-Dataset source: https://www.kaggle.com/datasets/orvile/acrima-glaucoma-assessment-using-fundus-images?resource=download
+## Dataset
+Source: https://www.kaggle.com/datasets/orvile/acrima-glaucoma-assessment-using-fundus-images?resource=download
 
-## 1) Setup
+Expected layout:
+- `data/raw/` -> ACRIMA images
 
+## Setup
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## 2) Data layout
+## Pipeline Overview
+`main.py` runs all major stages in sequence:
+1. `prepare_acrima_metadata.py`
+2. `train_gan.py`
+3. `train_incremental.py`
+4. `evaluate.py`
 
-Place dataset images in:
+Run full pipeline:
+```bash
+python main.py
+```
 
-- `data/raw/*.jpg|*.jpeg|*.png`
+## Stage Commands
 
-Then generate metadata (deterministic stratified split: train/val/test):
+### 1) Prepare metadata + data splits
+Creates:
+- `metadata.csv`
+- `data/splits/train.csv`
+- `data/splits/val.csv`
+- `data/splits/test.csv`
 
 ```bash
 python prepare_acrima_metadata.py
 ```
 
-This creates `metadata.csv` with columns:
-
-- `filename`
-- `label` (`0=healthy`, `1=glaucoma`)
-- `split` (`train|val|test`)
-
-## 3) Training workflow
-
-### 3.1 Baseline classifier training (required)
-
-```bash
-python train_baseline.py
-```
-
-Outputs:
-
-- `models/glaucoma_detector_baseline.pth`
-- `plots/baseline_training_log.csv`
-
-### 3.2 GAN training (optional synthetic augmentation stage)
+### 2) Train GAN
+Uses `data/splits/train.csv` if available, else falls back to `metadata.csv`.
 
 ```bash
 python train_gan.py
 ```
 
-### 3.3 Incremental classifier training
-
-Requires existing baseline checkpoint:
-
+### 3) Incremental classifier training
+Uses `data/splits/train.csv` if available.
+Tries to load baseline checkpoint for distillation from:
 - `models/glaucoma_detector_baseline.pth`
 
-Then run:
+Saves final checkpoint to:
+- `models/glaucoma_detector_final.pth`
 
 ```bash
 python train_incremental.py
 ```
 
-Outputs:
-
-- `models/glaucoma_detector_best.pth` (best validation F1)
-- `models/glaucoma_detector_final.pth` (final epoch)
-- `plots/training_log.csv`
-
-## 4) Evaluation
-
-Evaluation runs only on the `test` split:
+### 4) Evaluate model
+Uses `data/splits/test.csv` if available.
+Saves confusion matrix plot to:
+- `plots/evaluation_results.png`
 
 ```bash
 python evaluate.py
 ```
 
-Output artifacts:
-
-- `plots/evaluation_results.png`
-- `plots/evaluation_metrics.json`
-
-## 5) Web inference app
-
-Start Flask app:
-
+## Run Flask App
 ```bash
 python app.py
 ```
 
-Routes:
+Open http://127.0.0.1:5000/.
 
-- `GET /` UI upload page
-- `POST /predict` JSON inference endpoint
-- `GET /health` healthcheck endpoint
+Production note:
+- Set `FLASK_DEBUG=true` only for local debugging.
+- Uploads are limited to 5 MB and image extensions `png/jpg/jpeg`.
 
-Production-safe defaults:
+## Reproducibility
+Training and evaluation scripts set deterministic seeds via `utils/reproducibility.py`.
 
-- `FLASK_DEBUG=false` by default
-- configurable with `FLASK_DEBUG=true`
-- upload size limit: 8MB
-- image type validation (`png/jpg/jpeg`)
-
-Optional env vars:
-
-- `PORT` (default `5000`)
-- `FLASK_DEBUG` (`true|false`)
-
-## 6) End-to-end pipeline script
-
-Run all stages in sequence:
-
-```bash
-python main.py
-```
-
-Order:
-
-1. `prepare_acrima_metadata.py`
-2. `train_baseline.py`
-3. `train_gan.py`
-4. `train_incremental.py`
-5. `evaluate.py`
-
-## 7) Running tests
-
-```bash
-python -m unittest discover -s tests -p 'test_*.py' -v
-```
+## Outputs
+- Models: `models/*.pth`
+- Metrics log: `plots/training_log.csv`
+- Visuals: `plots/*.png`

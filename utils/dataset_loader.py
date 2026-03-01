@@ -11,27 +11,26 @@ class GlaucomaDataset(Dataset):
         self.img_dir = img_dir
         self.transform = transform
 
-        required_columns = {"filename", "label"}
-        missing = required_columns.difference(self.annotations.columns)
-        if missing:
-            raise ValueError(f"Missing required CSV columns: {sorted(missing)}")
-
-        if split is not None:
-            if "split" not in self.annotations.columns:
-                raise ValueError("CSV is missing 'split' column required for split filtering")
-            self.annotations = self.annotations[self.annotations["split"] == split].reset_index(drop=True)
+        required_cols = {"filename", "label"}
+        if not required_cols.issubset(self.annotations.columns):
+            raise ValueError(
+                f"Dataset CSV must contain columns {required_cols}. "
+                f"Found columns: {list(self.annotations.columns)}"
+            )
 
     def __len__(self):
         return len(self.annotations)
 
     def __getitem__(self, index):
-        img_id = self.annotations.loc[index, "filename"]
+        row = self.annotations.iloc[index]
+        img_id = row["filename"]
         img_path = os.path.join(self.img_dir, img_id)
+
         if not os.path.exists(img_path):
-            raise FileNotFoundError(f"Image not found: {img_path}")
+            raise FileNotFoundError(f"Image file not found: {img_path}")
 
         image = Image.open(img_path).convert("RGB")
-        label = int(self.annotations.loc[index, "label"])
+        label = int(row["label"])
 
         if self.transform:
             image = self.transform(image)

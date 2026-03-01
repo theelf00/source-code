@@ -1,51 +1,42 @@
 import os
 
 import pandas as pd
-from sklearn.model_selection import train_test_split
 
-from utils.seed import set_seed
+from utils.data_split import create_data_splits
 
-# Path to where you combined the ACRIMA images
+# Path to ACRIMA images
 IMAGE_DIR = "data/raw"
-SEED = 42
+OUTPUT_METADATA = "metadata.csv"
 
 
-def assign_label(filename: str) -> int:
-    # ACRIMA naming convention in this project includes "_g_" for glaucoma images.
-    return 1 if "_g_" in filename.lower() else 0
+def infer_label(filename: str) -> int:
+    """Infer glaucoma label from ACRIMA naming pattern.
+
+    Returns:
+        1 for glaucoma, 0 for healthy.
+    """
+    lower_name = filename.lower()
+
+    # Common ACRIMA naming includes `_g_` for glaucoma images.
+    if "_g_" in lower_name or lower_name.startswith("g") or "glaucoma" in lower_name:
+        return 1
+
+    return 0
 
 
 def main() -> None:
-    set_seed(SEED)
+    files = [f for f in os.listdir(IMAGE_DIR) if f.lower().endswith((".jpg", ".png", ".jpeg"))]
 
-    files = sorted([f for f in os.listdir(IMAGE_DIR) if f.lower().endswith((".jpg", ".png", ".jpeg"))])
-    data = [{"filename": f, "label": assign_label(f)} for f in files]
+    data = [{"filename": f, "label": infer_label(f)} for f in files]
 
-    df = pd.DataFrame(data)
+    df = pd.DataFrame(data).sort_values("filename").reset_index(drop=True)
+    df.to_csv(OUTPUT_METADATA, index=False)
 
-    # Stratified split: 70% train, 15% val, 15% test
-    train_df, temp_df = train_test_split(
-        df,
-        test_size=0.3,
-        stratify=df["label"],
-        random_state=SEED,
-    )
-    val_df, test_df = train_test_split(
-        temp_df,
-        test_size=0.5,
-        stratify=temp_df["label"],
-        random_state=SEED,
-    )
+    print(f"Metadata created with {len(df)} images from ACRIMA.")
+    print(df["label"].value_counts().rename(index={0: "healthy", 1: "glaucoma"}))
 
-    train_df = train_df.assign(split="train")
-    val_df = val_df.assign(split="val")
-    test_df = test_df.assign(split="test")
-
-    final_df = pd.concat([train_df, val_df, test_df], ignore_index=True)
-    final_df.to_csv("metadata.csv", index=False)
-
-    print(f"Metadata created with {len(final_df)} images from ACRIMA.")
-    print(final_df["split"].value_counts().to_dict())
+    create_data_splits(metadata_path=OUTPUT_METADATA)
+    print("Train/validation/test splits created in data/splits/")
 
 
 if __name__ == "__main__":
